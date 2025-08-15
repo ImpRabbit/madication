@@ -552,18 +552,17 @@
 
     <!-- ナビゲーション -->
     <nav aria-label="アプリナビゲーション">
-      <div class="nav-buttons">
-        <button type="button" class="btn-primary" onclick="showMonthlyView()" aria-label="月間統計を表示">
-          📈 月間統計
-        </button>
-        <button type="button" class="btn-secondary" onclick="exportData()" aria-label="データをエクスポート">
-          💾 データ保存
-        </button>
-        <button type="button" class="btn-secondary" onclick="importData()" aria-label="データをインポート">
-          📁 データ読込
-        </button>
-      </div>
-    </nav>
+  <div class="nav-buttons">
+    <button type="button" class="btn-primary" onclick="showMonthlyView()" aria-label="月間統計を表示">
+      📈 月間統計
+    </button>
+    <button type="button" class="btn-secondary" 
+      onclick="document.getElementById('backup-title').scrollIntoView({behavior:'smooth'})" 
+      aria-label="データ管理セクションへ移動">
+      💾 データ管理
+    </button>
+  </div>
+</nav>
 
     <!-- 服薬ボタン -->
     <main>
