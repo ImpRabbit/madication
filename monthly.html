@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>📈 月間統計</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=Zen+Maru+Gothic&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #f6f7fb; --fg: #1f2937; --card: #ffffff; --grad1:#667eea; --grad2:#764ba2; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family:'M PLUS Rounded 1c', system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--fg); }
+    .wrap{ max-width:900px; margin:0 auto; padding:20px; }
+    header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    h1{ margin:0; font-size:clamp(1.6rem,4vw,2.2rem); }
+    a.btn, button.btn{ display:inline-block; padding:10px 16px; border-radius:12px; border:none; text-decoration:none; font-weight:700; cursor:pointer; }
+    .btn-primary{ background:linear-gradient(135deg,var(--grad1),var(--grad2)); color:#fff; box-shadow:0 6px 18px rgba(118,75,162,0.25); }
+    .card{ background:var(--card); border-radius:16px; box-shadow:0 10px 28px rgba(0,0,0,.08); padding:18px; margin-top:16px; }
+    .stats-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+    .stat-card{ border-radius:14px; padding:20px; text-align:center; background:linear-gradient(135deg,#ffffff,#f4f5fb); }
+    .stat-number{ font-size:2rem; font-weight:800; margin-bottom:6px; }
+    .stat-label{ opacity:.75; }
+    .note{ font-size:.9rem; opacity:.75; margin-top:10px; }
+    .controls{ display:flex; gap:8px; flex-wrap:wrap; }
+    .btn-secondary{ background:#eef2ff; color:#3730a3; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📈 月間統計</h1>
+      <div class="controls">
+        <a class="btn btn-secondary" href="./index.html">← 戻る</a>
+      </div>
+    </header>
+
+    <!-- 月間統計セクション -->
+    <section class="card" aria-labelledby="monthly-stats-title">
+      <h2 id="monthly-stats-title" style="margin:0 0 8px">今月のサマリー</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="monthlyTakenCount">0</div>
+          <div class="stat-label">今月の服薬回数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="monthlyTotalCount">0</div>
+          <div class="stat-label">今月の総服薬回数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="monthlyStreakCount">0</div>
+          <div class="stat-label" id="streakLabel">今月の最長連続日数</div>
+        </div>
+      </div>
+      <p class="note" id="rangeNote"></p>
+    </section>
+  </div>
+
+  <script>
+    // ====== 共通ユーティリティ（メインと同じ仕様でOK） ======
+    const medicationTimes = ['朝','昼','晩']; // 既定の時間帯
+
+    function formatDate(date){
+      const y = date.getFullYear();
+      const m = String(date.getMonth()+1).padStart(2,'0');
+      const d = String(date.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
+    }
+    function formatJapaneseDate(date){
+      return `${date.getFullYear()}年${date.getMonth()+1}月${date.getDate()}日`;
+    }
+    function loadData(dateStr){
+      try{
+        const json = localStorage.getItem(`medication-${dateStr}`);
+        return json ? JSON.parse(json) : { times:{}, custom:[] };
+      }catch(e){
+        return { times:{}, custom:[] };
+      }
+    }
+
+    // ====== 月間統計 ======
+    const currentDate = new Date(); // 表示したい月はここを基準にする（今月）
+
+    function updateMonthlyStatistics() {
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const monthEnd   = new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0);
+
+      document.getElementById('rangeNote').textContent =
+        `対象期間：${formatJapaneseDate(monthStart)} 〜 ${formatJapaneseDate(monthEnd)}`;
+
+      let monthTaken = 0, monthTotal = 0;
+
+      for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate()+1)) {
+        const data = loadData(formatDate(d));
+        const dayTaken = medicationTimes.filter(t => data.times[t]).length
+                       + data.custom.filter(it => it.taken).length;
+        const dayTotal = medicationTimes.length + data.custom.length;
+        monthTaken += dayTaken;
+        monthTotal += dayTotal;
+      }
+
+      document.getElementById('monthlyTakenCount').textContent = monthTaken;
+      document.getElementById('monthlyTotalCount').textContent = monthTotal;
+
+      // 連続は「今月の最長連続」を表示
+      const monthlyBestStreak = calcMonthlyBestStreak(monthStart, monthEnd);
+      document.getElementById('monthlyStreakCount').textContent = monthlyBestStreak;
+      document.getElementById('streakLabel').textContent = '今月の最長連続日数';
+    }
+
+    function calcMonthlyBestStreak(monthStart, monthEnd){
+      let best = 0, run = 0;
+      for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate()+1)) {
+        const data = loadData(formatDate(d));
+        const totalTimes = medicationTimes.length + data.custom.length;
+        const takenTimes = medicationTimes.filter(t => data.times[t]).length
+                        + data.custom.filter(it => it.taken).length;
+        if (totalTimes > 0 && takenTimes === totalTimes) {
+          run++; if (run > best) best = run;
+        } else {
+          run = 0;
+        }
+      }
+      return best;
+    }
+
+    // 必要なら「今の連続」（今日からの継続）も計算できる
+    function calcCurrentStreak(){
+      let streak = 0;
+      const today = new Date(); today.setHours(0,0,0,0);
+      for (let i=0;i<400;i++){
+        const d = new Date(today); d.setDate(today.getDate()-i);
+        const data = loadData(formatDate(d));
+        const totalTimes = medicationTimes.length + data.custom.length;
+        const takenTimes = medicationTimes.filter(t => data.times[t]).length
+                        + data.custom.filter(it => it.taken).length;
+        if (totalTimes > 0 && takenTimes === totalTimes) streak++;
+        else break;
+      }
+      return streak;
+    }
+
+    // 初期化
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateMonthlyStatistics);
+    } else {
+      updateMonthlyStatistics();
+    }
+  </script>
+</body>
+</html>
